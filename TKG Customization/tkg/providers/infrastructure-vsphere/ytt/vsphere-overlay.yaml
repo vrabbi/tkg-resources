@@ -1,0 +1,224 @@
+#! Please add any overlays specific to vSphere provider under this file.
+#!
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ load("lib/helpers.star", "get_bom_data_for_k8s_version", "get_default_bom_data", "kubeadm_image_repo", "tkg_image_repo")
+#@ load("@ytt:yaml", "yaml")
+#@ bomData = get_bom_data_for_k8s_version()
+#@ bomDataDefault = get_default_bom_data()
+
+#@ if data.values.CLUSTER_PLAN == "complex":
+#@overlay/match by=overlay.subset({"kind":"KubeadmConfigTemplate", "metadata":{"name": data.values.CLUSTER_NAME + "-md-0"}})
+---
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            #@overlay/match missing_ok=True
+            node-labels: #@ "cluster-api/machine-deployment={}-md-0".format(data.values.CLUSTER_NAME)
+
+#@overlay/match by=overlay.subset({"kind":"VSphereCluster"})
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: VSphereCluster
+metadata:
+  name: #@ data.values.CLUSTER_NAME
+  namespace: #@ data.values.NAMESPACE
+spec:
+  cloudProviderConfiguration:
+    global:
+      insecure: true
+      secretName: cloud-provider-vsphere-credentials
+      secretNamespace: kube-system
+    network:
+      name: #@ data.values.VSPHERE_NETWORK
+    providerConfig:
+      cloud:
+        controllerImage: #@ "{}/{}:{}".format(tkg_image_repo(), bomDataDefault.images.ccmControllerImage.imagePath, bomDataDefault.images.ccmControllerImage.tag)
+        extraArgs:
+          tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    virtualCenter:
+      #@yaml/text-templated-strings
+      (@= data.values.VSPHERE_SERVER @):
+        datacenters: #@ data.values.VSPHERE_DATACENTER
+    workspace:
+      datacenter: #@ data.values.VSPHERE_DATACENTER
+      datastore: #@ data.values.VSPHERE_DATASTORE
+      folder: #@ data.values.VSPHERE_FOLDER
+      resourcePool: #@ data.values.VSPHERE_RESOURCE_POOL
+      server: #@ data.values.VSPHERE_SERVER
+  controlPlaneEndpoint:
+    host: #@ data.values._VSPHERE_CONTROL_PLANE_ENDPOINT
+    port: 6443
+  server: #@ data.values.VSPHERE_SERVER
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+  name: #@ "{}-md-1".format(data.values.CLUSTER_NAME)
+  namespace: #@ data.values.NAMESPACE
+spec:
+  clusterName: #@ data.values.CLUSTER_NAME
+  replicas: #@ data.values.WORKER_MACHINE_COUNT_1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+        node-pool: #@ "{}-worker-pool".format(data.values.CLUSTER_NAME)
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: KubeadmConfigTemplate
+          name: #@ "{}-md-1".format(data.values.CLUSTER_NAME)
+      clusterName: #@ data.values.CLUSTER_NAME
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+        kind: VSphereMachineTemplate
+        name: #@ "{}-md-1".format(data.values.CLUSTER_NAME)
+      version: #@ data.values.KUBERNETES_VERSION
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+  name: #@ "{}-md-2".format(data.values.CLUSTER_NAME)
+  namespace: #@ data.values.NAMESPACE
+spec:
+  clusterName: #@ data.values.CLUSTER_NAME
+  replicas: #@ data.values.WORKER_MACHINE_COUNT_2
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+        node-pool: #@ "{}-worker-pool".format(data.values.CLUSTER_NAME)
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: KubeadmConfigTemplate
+          name: #@ "{}-md-2".format(data.values.CLUSTER_NAME)
+      clusterName: #@ data.values.CLUSTER_NAME
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+        kind: VSphereMachineTemplate
+        name: #@ "{}-md-2".format(data.values.CLUSTER_NAME)
+      version: #@ data.values.KUBERNETES_VERSION
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: VSphereMachineTemplate
+metadata:
+  name: #@ "{}-md-1".format(data.values.CLUSTER_NAME)
+  namespace: #@ data.values.NAMESPACE
+spec:
+  template:
+    spec:
+      cloneMode: #@ data.values.VSPHERE_CLONE_MODE
+      datacenter: #@ data.values.VSPHERE_DATACENTER
+      datastore: #@ data.values.VSPHERE_DATASTORE
+      diskGiB: #@ data.values.VSPHERE_WORKER_DISK_GIB_1
+      folder: #@ data.values.VSPHERE_FOLDER
+      memoryMiB: #@ data.values.VSPHERE_WORKER_MEM_MIB_1
+      network:
+        devices:
+        - dhcp4: true
+          networkName: #@ data.values.VSPHERE_NETWORK
+      numCPUs: #@ data.values.VSPHERE_WORKER_NUM_CPUS_1
+      resourcePool: #@ data.values.VSPHERE_RESOURCE_POOL
+      server: #@ data.values.VSPHERE_SERVER
+      template: #@ data.values.VSPHERE_TEMPLATE
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: VSphereMachineTemplate
+metadata:
+  name: #@ "{}-md-2".format(data.values.CLUSTER_NAME)
+  namespace: #@ data.values.NAMESPACE
+spec:
+  template:
+    spec:
+      cloneMode: #@ data.values.VSPHERE_CLONE_MODE
+      datacenter: #@ data.values.VSPHERE_DATACENTER
+      datastore: #@ data.values.VSPHERE_DATASTORE
+      diskGiB: #@ data.values.VSPHERE_WORKER_DISK_GIB_2
+      folder: #@ data.values.VSPHERE_FOLDER
+      memoryMiB: #@ data.values.VSPHERE_WORKER_MEM_MIB_2
+      network:
+        devices:
+        - dhcp4: true
+          networkName: #@ data.values.VSPHERE_NETWORK
+      numCPUs: #@ data.values.VSPHERE_WORKER_NUM_CPUS_2
+      resourcePool: #@ data.values.VSPHERE_RESOURCE_POOL
+      server: #@ data.values.VSPHERE_SERVER
+      template: #@ data.values.VSPHERE_TEMPLATE
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: KubeadmConfigTemplate
+metadata:
+  name:  #@ "{}-md-1".format(data.values.CLUSTER_NAME)
+  namespace: #@ data.values.NAMESPACE
+spec:
+  template:
+    spec:
+      useExperimentalRetryJoin: true
+      joinConfiguration:
+        nodeRegistration:
+          criSocket: /var/run/containerd/containerd.sock
+          kubeletExtraArgs:
+            cloud-provider: external
+            tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            node-labels: #@ "cluster-api/machine-deployment={}-md-1".format(data.values.CLUSTER_NAME)
+          name: '{{ ds.meta_data.hostname }}'
+      preKubeadmCommands:
+      - hostname "{{ ds.meta_data.hostname }}"
+      - echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+      - echo "127.0.0.1   localhost" >>/etc/hosts
+      - echo "127.0.0.1   {{ ds.meta_data.hostname }}" >>/etc/hosts
+      - echo "{{ ds.meta_data.hostname }}" >/etc/hostname
+      files: []
+      users:
+      - name: capv
+        sshAuthorizedKeys:
+        - #@ data.values.VSPHERE_SSH_AUTHORIZED_KEY
+        sudo: ALL=(ALL) NOPASSWD:ALL
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: KubeadmConfigTemplate
+metadata:
+  name:  #@ "{}-md-2".format(data.values.CLUSTER_NAME)
+  namespace: #@ data.values.NAMESPACE
+spec:
+  template:
+    spec:
+      useExperimentalRetryJoin: true
+      joinConfiguration:
+        nodeRegistration:
+          criSocket: /var/run/containerd/containerd.sock
+          kubeletExtraArgs:
+            cloud-provider: external
+            tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            node-labels: #@ "cluster-api/machine-deployment={}-md-2".format(data.values.CLUSTER_NAME)
+          name: '{{ ds.meta_data.hostname }}'
+      preKubeadmCommands:
+      - hostname "{{ ds.meta_data.hostname }}"
+      - echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+      - echo "127.0.0.1   localhost" >>/etc/hosts
+      - echo "127.0.0.1   {{ ds.meta_data.hostname }}" >>/etc/hosts
+      - echo "{{ ds.meta_data.hostname }}" >/etc/hostname
+      files: []
+      users:
+      - name: capv
+        sshAuthorizedKeys:
+        - #@ data.values.VSPHERE_SSH_AUTHORIZED_KEY
+        sudo: ALL=(ALL) NOPASSWD:ALL
+#@ end
