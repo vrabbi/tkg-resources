@@ -15,6 +15,9 @@
     * Automatic Creation of Kyverno Enforced Policies following the Kubernetes Security best practices
     * Automatic installation of Metrics Server
     * Automatic installation of the kube-prometheus-stack monitoring suite (Prometheus, Alert Manager, Node Exporter and Grafana + 24 base dashboards for monitoring your cluster)
+    * Automatic installation of KubeApps
+    * Automatic installation of the official TKG extensions for contour, prometheus and grafana
+    * automatic installation of the OSS harbor installation
 
 # Usage Notes
 ## Complex Plan Enablement
