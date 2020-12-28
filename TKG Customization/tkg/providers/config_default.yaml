@@ -1,17 +1,24 @@
 #! CUSTOM USER VARIABLES
-VSPHERE_WORKER_NUM_CPUS_1: 2
-VSPHERE_WORKER_NUM_CPUS_2: 2
-VSPHERE_WORKER_DISK_GIB_1: 40
-VSPHERE_WORKER_DISK_GIB_2: 50
-VSPHERE_WORKER_MEM_MIB_1: 4096
-VSPHERE_WORKER_MEM_MIB_2: 4096
-ENABLE_METRICS_SERVER: false
-INSTALL_KYVERNO: false
-KYVERNO_ENFORCE_BASELINE: false
-KYVERNO_AUDIT_BASELINE: false
-ENABLE_SVC_LB_KUBEVIP: false
-KUBEVIP_GLOBAL_VIP_CIDR:
-ENABLE_SVC_LB_METALLB: false
-METALLB_VIP_RANGE: 
-ENABLE_OSS_CONTOUR: false
-ENABLE_OSS_MONITORING_STACK: false
+VSPHERE_WORKER_NUM_CPUS_1: 2 #! used when deploying multi MDs for the md-1 vms
+VSPHERE_WORKER_NUM_CPUS_2: 4 #! used when deploying multi MDs for the md-2 vms
+VSPHERE_WORKER_DISK_GIB_1: 40 #! used when deploying multi MDs for the md-1 vms
+VSPHERE_WORKER_DISK_GIB_2: 50 #! used when deploying multi MDs for the md-2 vms
+VSPHERE_WORKER_MEM_MIB_1: 4096 #! used when deploying multi MDs for the md-1 vms
+VSPHERE_WORKER_MEM_MIB_2: 8192 #! used when deploying multi MDs for the md-2 vms
+ENABLE_METRICS_SERVER: false #! enables metrics server on the cluster
+INSTALL_KYVERNO: false #! installs the kyverno system to the cluster for enabling native kubernetes policies
+KYVERNO_ENFORCE_BASELINE: false #! installs the best practice security policies from kyverno and enforces them on the cluster
+KYVERNO_AUDIT_BASELINE: false #! installs the best practice security policies from kyverno in audit mode on the cluster
+ENABLE_SVC_LB_KUBEVIP: false #! enables the use of kube-vip for service type load balancer on TKG clusters
+KUBEVIP_GLOBAL_VIP_CIDR: #! the cidr range for service type load balancer IPs (must be from the same subnet as the nodes) eg 10.0.1.128/26
+ENABLE_SVC_LB_METALLB: false #! enables the use of metallb for service type load balancer on TKG clusters
+METALLB_VIP_RANGE: #! the ip address range for service type load balancer IPs (must be from the same subnet as the nodes) eg 10.0.1.100-10.0.1.200
+ENABLE_OSS_CONTOUR: false #! install the open source contour ingress controller on the cluster using SVC type LB for envoy proxy
+ENABLE_OSS_HARBOR: false #! install the open source harbor registry on the cluster using SVC type LB
+ENABLE_OSS_MONITORING_STACK: false #! installs open source prometheus, node exporter, cadvisor, alert manager and grafana and exposes prometheus and grafana with SVC type LB
+ENABLE_KUBEAPPS: false #! installs kubeapps on the cluster using the latest build of the official helm chart and exposes it with an ingress controller
+KUBEAPPS_HOSTNAME: #! the FQDN to be used for the ingress object of kubeapps
+ENABLE_TKG_MONITORING_STACK: false #! installs the tkg extensions base components (tmc extension manager, kapp controller and cert manager) as well as contour (requires SVC type LB), prometheus and grafana both using contour ingress controllers
+PROMETHEUS_FQDN: #! the FQDN to be used for the prometheus ingress object
+GRAFANA_PASSWORD: #! the admin user password for grafana
+GRAFANA_FQDN: #! the FQDN to be used for the grafana ingress object
