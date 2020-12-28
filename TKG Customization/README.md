@@ -26,20 +26,39 @@
 3. you also must add the vsphere-overlay.yaml file contents into the same file on your workstation in the tkg/providers/infrastructure-vsphere/ytt/ directory
 ## Automated Installations
 1. In order to use the automatic installation options add the 04_user_customizations folder from this repo into the following path on your workstation .tkg/providers/ytt/
+2. You also must add the files in the directory tkg/providers/infrastructure-vsphere/v0.7.1/ytt in this repo in the same location on your workstation.
 2. You must also add the variables in the config_default.yaml file under the providers folder in this repo into the same file on your workstation
 3. You can set the values of these variables either in this file, in the .tkg/config.yaml file or as variables when running a tkg create cluster command
 
-## Example command setting automatic installations and using the complex plan at runtime together with the new autoscaling option to create a robust HA cluster
+## Example command setting automatic installations of OSS components and using the complex plan at runtime together with the new autoscaling option to create a robust HA cluster
 ```
 ENABLE_OSS_MONITORING_STACK=true ENABLE_OSS_CONTOUR=true \
 ENABLE_SVC_LB_METALLB=true METALLB_VIP_RANGE=10.0.1.50-10.0.1.60 \
 INSTALL_KYVERNO=true KYVERNO_AUDIT_BASELINE=true \
+ENABLE_OSS_HARBOR=true \
+ENABLE_KUBEAPPS=true KUBEAPPS_HOSTNAME=kubeapps.tkg-cls-01.vrabbi.cloud \
 ENABLE_METRICS_SERVER=true \
 VSPHERE_WORKER_NUM_CPUS_1=4 VSPHERE_WORKER_MEM_MIB_1=8192 VSPHERE_WORKER_DISK_GIB_1=80 \
-VSPHERE_WORKER_NUM_CPUS_1=8 VSPHERE_WORKER_MEM_MIB_1=16284 VSPHERE_WORKER_DISK_GIB_1=120 \
+VSPHERE_WORKER_NUM_CPUS_2=8 VSPHERE_WORKER_MEM_MIB_2=16284 VSPHERE_WORKER_DISK_GIB_2=120 \
 AUTOSCALER_MIN_SIZE_0=2 AUTOSCALER_MAX_SIZE_0=20 \
 AUTOSCALER_MIN_SIZE_1=2 AUTOSCALER_MAX_SIZE_1=10 \
 AUTOSCALER_MIN_SIZE_2=1 AUTOSCALER_MAX_SIZE_2=5 \
 tkg create cluster tkg-cls-01 --plan complex --vsphere-controlplane-endpoint=tkg-cls-01.vrabbi.cloud --controlplane-machine-count 3 --enable-cluster-options autoscaler
 ```
 
+## Example command setting automatic installations of the official TKG extensions and using the complex plan at runtime together with the new autoscaling option to create a robust HA cluster
+```
+ENABLE_TKG_MONITORING_STACK=true \
+PROMETHEUS_FQDN=prometheus.tkg-cls-01.vrabbi.cloud \
+GRAFANA_FQDN=grafana.tkg-cls-01.vrabbi.cloud \
+GRAFANA_PASSWORD=VMware1! \
+ENABLE_SVC_LB_METALLB=true METALLB_VIP_RANGE=10.0.1.50-10.0.1.60 \
+INSTALL_KYVERNO=true KYVERNO_AUDIT_BASELINE=true \
+ENABLE_METRICS_SERVER=true \
+VSPHERE_WORKER_NUM_CPUS_1=4 VSPHERE_WORKER_MEM_MIB_1=8192 VSPHERE_WORKER_DISK_GIB_1=80 \
+VSPHERE_WORKER_NUM_CPUS_2=8 VSPHERE_WORKER_MEM_MIB_2=16284 VSPHERE_WORKER_DISK_GIB_2=120 \
+AUTOSCALER_MIN_SIZE_0=2 AUTOSCALER_MAX_SIZE_0=20 \
+AUTOSCALER_MIN_SIZE_1=2 AUTOSCALER_MAX_SIZE_1=10 \
+AUTOSCALER_MIN_SIZE_2=1 AUTOSCALER_MAX_SIZE_2=5 \
+tkg create cluster tkg-cls-01 --plan complex --vsphere-controlplane-endpoint=tkg-cls-01.vrabbi.cloud --controlplane-machine-count 3 --enable-cluster-options autoscaler
+```
