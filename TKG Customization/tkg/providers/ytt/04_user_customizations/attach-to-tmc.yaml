@@ -1,0 +1,70 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#@ def tmc_integration():
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tmc-attacher
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tmc-attacher
+subjects:
+- kind: ServiceAccount
+  name: tmc-attacher
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tmc-attacher
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: installer
+        image: vrabbi/tmc-cli:v0.2.0
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - #@ "/root/install.sh {} {} {} {} {}".format( data.values.TMC_API_TOKEN , data.values.CLUSTER_NAME, data.values.TMC_CLUSTER_GROUP_NAME, data.values.TMC_ENABLE_DATA_PROTECTION, data.values.TMC_DATA_PROTECTION_ACCOUNT_NAME )
+      restartPolicy: Never
+      serviceAccountName: tmc-attacher
+  backoffLimit: 4
+#@ end
+
+
+#@ if data.values.ATTACH_TO_TMC and data.values.TKG_CLUSTER_ROLE == "workload":
+---
+apiVersion: addons.cluster.x-k8s.io/v1alpha3
+kind: ClusterResourceSet
+metadata:
+  name: #@ "{}-tmc-integration".format(data.values.CLUSTER_NAME)
+  labels:
+    cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+spec:
+  strategy: "ApplyOnce"
+  clusterSelector:
+    matchLabels:
+      tkg.tanzu.vmware.com/cluster-name: #@ data.values.CLUSTER_NAME
+  resources:
+  - name: #@ "{}-tmc-integration".format(data.values.CLUSTER_NAME)
+    kind: ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: #@ "{}-tmc-integration".format(data.values.CLUSTER_NAME)
+data:
+  data: #@ yaml.encode(tmc_integration())
+#@ end

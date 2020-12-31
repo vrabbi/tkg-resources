@@ -1,0 +1,75 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#@ def cert_manager_oss_deployment():
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager-installer
+  namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-manager-installer
+subjects:
+- kind: ServiceAccount
+  name: cert-manager-installer
+  namespace: cert-manager
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-manager-installer
+  namespace: cert-manager
+spec:
+  template:
+    spec:
+      containers:
+      - name: installer
+        image: alpine/helm
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - helm repo add jetstack https://charts.jetstack.io && helm install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.1.0 --set installCRDs=true
+      restartPolicy: Never
+      serviceAccountName: cert-manager-installer
+  backoffLimit: 4
+#@ end
+
+
+#@ if data.values.ENABLE_OSS_CERT_MANAGER and data.values.TKG_CLUSTER_ROLE == "workload":
+---
+apiVersion: addons.cluster.x-k8s.io/v1alpha3
+kind: ClusterResourceSet
+metadata:
+  name: #@ "{}-cert-manager-oss-deployment".format(data.values.CLUSTER_NAME)
+  labels:
+    cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+spec:
+  strategy: "ApplyOnce"
+  clusterSelector:
+    matchLabels:
+      tkg.tanzu.vmware.com/cluster-name: #@ data.values.CLUSTER_NAME
+  resources:
+  - name: #@ "{}-cert-manager-oss-deployment".format(data.values.CLUSTER_NAME)
+    kind: ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: #@ "{}-cert-manager-oss-deployment".format(data.values.CLUSTER_NAME)
+data:
+  data: #@ yaml.encode(cert_manager_oss_deployment())
+#@ end

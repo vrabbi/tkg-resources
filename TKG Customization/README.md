@@ -18,6 +18,11 @@
     * Automatic installation of KubeApps
     * Automatic installation of the official TKG extensions for contour, prometheus and grafana
     * automatic installation of the OSS harbor installation
+    * automatic attachment to TMC
+    * automatic installation of OSS Contour and Cert-Manager
+    * automatic Configuration of TMC Data Protection
+    * automatic installation of Rancher
+3. Example BASH script for interactive deployment of a cluster which alows selecting all parameters with validation for fields
 
 # Usage Notes
 ## Complex Plan Enablement
@@ -62,3 +67,8 @@ AUTOSCALER_MIN_SIZE_1=2 AUTOSCALER_MAX_SIZE_1=10 \
 AUTOSCALER_MIN_SIZE_2=1 AUTOSCALER_MAX_SIZE_2=5 \
 tkg create cluster tkg-cls-01 --plan complex --vsphere-controlplane-endpoint=tkg-cls-01.vrabbi.cloud --controlplane-machine-count 3 --enable-cluster-options autoscaler
 ```
+
+## Script Execution
+You can run the script from any bash shell as long as you have TKG CLI configured and have all the needed files from this repo in the proper locations.
+The script allows you to fill out interactively the form and at the end allows you to either run the command or print it to the screen for use at a later time.
+

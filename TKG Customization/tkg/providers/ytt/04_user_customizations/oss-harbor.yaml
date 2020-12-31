@@ -1,0 +1,76 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#@ def harbor_deployment():
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: harbor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: harbor-installer
+  namespace: harbor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: harbor-installer
+subjects:
+- kind: ServiceAccount
+  name: harbor-installer
+  namespace: harbor
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harbor-installer
+  namespace: harbor
+spec:
+  template:
+    spec:
+      containers:
+      - name: installer
+        image: alpine/helm
+        command: ["/bin/sh"]
+        args:
+          - -c
+          #@yaml/text-templated-strings
+          - "wget https://storage.googleapis.com/kubernetes-release/release/v1.19.3/bin/linux/amd64/kubectl && chmod +x kubectl && mv kubectl /usr/local/bin/ && until((kubectl get ns cert-manager -o jsonpath='{.metadata.name}' 2>/dev/null= \"cert-manager\"));do echo \"NOT READY\" ;sleep 30; done && sleep 60 && kubectl wait deploy -n cert-manager cert-manager-webhook --for=condition=available && helm repo add bitnami https://charts.bitnami.com/bitnami && helm install harbor harbor/harbor -n harbor --set expose.tls.auto.commonName=(@= data.values.HARBOR_OSS_FQDN @) --set expose.ingress.hosts.core=(@= data.values.HARBOR_OSS_FQDN @) --set expose.ingress.hosts.notary=(@= data.values.HARBOR_OSS_NOTARY_FQDN @) --set externalURL=https://(@= data.values.HARBOR_OSS_FQDN @) --set harborAdminPassword=(@= data.values.HARBOR_OSS_PASSWORD @)"
+      restartPolicy: Never
+      serviceAccountName: harbor-installer
+  backoffLimit: 4
+#@ end
+
+
+#@ if data.values.ENABLE_OSS_HARBOR and data.values.TKG_CLUSTER_ROLE == "workload":
+---
+apiVersion: addons.cluster.x-k8s.io/v1alpha3
+kind: ClusterResourceSet
+metadata:
+  name: #@ "{}-harbor-deployment".format(data.values.CLUSTER_NAME)
+  labels:
+    cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+spec:
+  strategy: "ApplyOnce"
+  clusterSelector:
+    matchLabels:
+      tkg.tanzu.vmware.com/cluster-name: #@ data.values.CLUSTER_NAME
+  resources:
+  - name: #@ "{}-harbor-deployment".format(data.values.CLUSTER_NAME)
+    kind: ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: #@ "{}-harbor-deployment".format(data.values.CLUSTER_NAME)
+data:
+  data: #@ yaml.encode(harbor_deployment())
+#@ end
